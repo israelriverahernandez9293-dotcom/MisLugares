@@ -1,7 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.google.services)
+}
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun localProperty(key: String, defaultValue: String = ""): String {
+    return localProperties.getProperty(key)?.trim().orEmpty().ifEmpty { defaultValue }
 }
 
 android {
@@ -16,7 +29,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GOOGLE_PHOTOS_BASE_URL", '"https://photoslibrary.googleapis.com/"')
+
+        buildConfigField("String", "GOOGLE_PHOTOS_BASE_URL", "\"https://photoslibrary.googleapis.com/\"")
+        buildConfigField("String", "GOOGLE_PHOTOS_READ_SCOPE", "\"https://www.googleapis.com/auth/photoslibrary.readonly\"")
+        buildConfigField("String", "PLACES_API_KEY", "\"${localProperty("PLACES_API_KEY")}\"")
+
+        manifestPlaceholders["PLACES_API_KEY"] = localProperty("PLACES_API_KEY")
     }
 
     buildTypes {
@@ -57,5 +75,9 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.analytics.ktx)
+
     implementation(libs.play.services.auth)
+    implementation(libs.places)
 }

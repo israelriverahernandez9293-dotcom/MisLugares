@@ -1,66 +1,88 @@
 # MisLugares Android Setup
 
-Base de configuración para Android Studio con:
+Configuración base lista para abrir en Android Studio con:
 - Firebase Authentication (correo/contraseña).
-- Integración con Google Photos Library API vía Retrofit.
+- Firebase Firestore.
+- Google Places SDK (Android).
+- Google Photos Library API (REST con Retrofit).
 
-## 1) Archivos que debes agregar manualmente
+## 1) Archivos y llaves que debes agregar manualmente
 
 1. Descarga `google-services.json` desde Firebase Console.
 2. Copia el archivo en:
    ```
    app/google-services.json
    ```
-3. Verifica que el `applicationId` en `app/build.gradle.kts` coincida con Firebase.
+3. Crea `local.properties` a partir de `local.properties.example` y agrega:
+   ```properties
+   sdk.dir=/ruta/a/android/sdk
+   PLACES_API_KEY=AIzaSy...tu_key...
+   ```
 
-> `google-services.json` está ignorado por git para evitar exponer secretos.
+> `google-services.json` y `local.properties` están ignorados por git para evitar exponer secretos.
 
-## 2) Firebase Authentication
+## 2) Firebase (Auth + Firestore)
 
 En Firebase Console:
 1. Ve a **Authentication > Sign-in method**.
 2. Habilita **Email/Password**.
+3. Ve a **Firestore Database** y crea la base en modo de prueba (o reglas seguras).
 
 Código principal:
-- `FirebaseAuthRepository` centraliza login, registro y logout.
-- `MisLugaresApp` inicializa Firebase al arrancar la app.
+- `FirebaseAuthRepository`: login, registro, logout y estado de sesión.
+- `UserProfileRepository`: lectura/escritura de perfil en colección `users`.
+- `MisLugaresApp`: inicializa Firebase al arrancar.
 
-## 3) Google Photos API
+## 3) Google Places SDK
 
-### 3.1 Configuración en Google Cloud
+1. Habilita **Places API** en Google Cloud.
+2. Restringe la API key por app Android (package + SHA-1/SHA-256).
+3. Define `PLACES_API_KEY` en `local.properties`.
+
+`PlacesInitializer` inicializa el SDK una sola vez al arrancar la app.
+
+## 4) Google Photos Library API
+
+### 4.1 Configuración en Google Cloud
 1. Habilita **Photos Library API**.
 2. Configura pantalla de consentimiento OAuth.
-3. Crea credenciales OAuth (Android).
-4. Añade SHA-1/SHA-256 del keystore de debug/release.
+3. Crea credenciales OAuth para Android.
+4. Añade SHA-1/SHA-256 del keystore debug/release.
 
-### 3.2 Scope recomendado
-Usa scopes mínimos según tu necesidad, por ejemplo:
+### 4.2 Scope recomendado
 - `https://www.googleapis.com/auth/photoslibrary.readonly`
 
-### 3.3 Flujo sugerido (buenas prácticas)
-1. Usuario inicia sesión en app (Firebase email/password).
-2. Si se requiere Google Photos, solicita OAuth de Google por separado.
-3. Obtén access token temporal.
+### 4.3 Flujo sugerido
+1. Usuario inicia sesión en Firebase (email/password).
+2. Solicita OAuth de Google solo cuando vaya a usar Photos.
+3. Obtén token OAuth temporal.
 4. Llama `GooglePhotosRepository.fetchAlbums(accessToken)`.
-5. Nunca guardes tokens en texto plano.
+5. No guardes tokens en texto plano.
 
-## 4) Estructura propuesta para mantenimiento
+## 5) Estructura propuesta (mantenimiento)
 
 ```text
 app/src/main/java/com/mislugares/
-  auth/   -> login, registro, sesión (Firebase)
-  photos/ -> cliente API Google Photos
-  core/   -> inicialización global y utilidades base
-  ui/     -> pantallas/viewmodels
+  auth/      -> login, registro, sesión (Firebase)
+  firestore/ -> repositorios para Firestore
+  photos/    -> OAuth/config y cliente Google Photos
+  core/      -> inicialización global
+  ui/        -> pantallas/viewmodels
 ```
 
-Esta separación ayuda a localizar bugs rápido por dominio.
+## 6) Auto-correcciones aplicadas
 
-## 5) Checklist rápida
+- Se corrigió un bug en `buildConfigField` (string mal escapado que rompía compilación).
+- Se agregó `MainActivity` launcher para que la app pueda iniciar correctamente.
+- Se añadió inicialización segura de Places (si la key no existe, no crashea).
+- Se movieron textos hardcodeados a `strings.xml`.
+
+## 7) Checklist rápida
 
 - [ ] `app/google-services.json` agregado localmente.
+- [ ] `local.properties` creado con `PLACES_API_KEY`.
 - [ ] Email/Password habilitado en Firebase.
+- [ ] Firestore habilitado y reglas revisadas.
 - [ ] Photos Library API habilitada en GCP.
-- [ ] SHA-1/SHA-256 cargadas.
-- [ ] Scope correcto definido para Google Photos.
-- [ ] Manejo de errores de red y autenticación en UI.
+- [ ] OAuth de Google Photos configurado con SHA.
+- [ ] Manejo de errores de red/autenticación en UI.
